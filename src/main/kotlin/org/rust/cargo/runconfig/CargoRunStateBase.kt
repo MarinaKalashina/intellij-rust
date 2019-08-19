@@ -7,6 +7,7 @@ package org.rust.cargo.runconfig
 
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.PtyCommandLine
+import com.intellij.execution.process.KillableProcessHandler
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -51,16 +52,20 @@ abstract class CargoRunStateBase(
         return commandLine
     }
 
-    override fun startProcess(): ProcessHandler = startProcess(emulateTerminal = false)
+    override fun startProcess(): ProcessHandler = startProcess(useColoredProcessHandler = true, emulateTerminal = false)
 
-    fun startProcess(emulateTerminal: Boolean): ProcessHandler {
+    fun startProcess(useColoredProcessHandler: Boolean, emulateTerminal: Boolean): ProcessHandler {
         var commandLine = cargo().toColoredCommandLine(prepareCommandLine())
         if (emulateTerminal) {
             commandLine = PtyCommandLine(commandLine)
                 .withInitialColumns(PtyCommandLine.MAX_COLUMNS)
                 .withConsoleMode(false)
         }
-        val handler = RsKillableColoredProcessHandler(commandLine)
+        val handler = if (useColoredProcessHandler) {
+            RsKillableColoredProcessHandler(commandLine)
+        } else {
+            KillableProcessHandler(commandLine)
+        }
         ProcessTerminatedListener.attach(handler) // shows exit code upon termination
         return handler
     }

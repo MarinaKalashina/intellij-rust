@@ -9,15 +9,14 @@ import com.intellij.build.BuildProgressListener
 import com.intellij.build.DefaultBuildDescriptor
 import com.intellij.build.events.impl.*
 import com.intellij.build.output.BuildOutputInstantReaderImpl
-import com.intellij.execution.process.AnsiEscapeDecoder
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.SystemInfo
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
 import org.rust.cargo.CargoConstants
-import org.rust.cargo.runconfig.RsAnsiEscapeDecoder
+import org.rust.cargo.runconfig.RsAnsiEscapeDecoder.Companion.ANSI_SGR_RE
+import org.rust.cargo.runconfig.RsAnsiEscapeDecoder.Companion.CSI
 import org.rust.cargo.runconfig.RsExecutableRunner.Companion.binaries
 import org.rust.cargo.runconfig.createFilters
 
@@ -25,19 +24,15 @@ import org.rust.cargo.runconfig.createFilters
 class CargoBuildAdapter(
     private val context: CargoBuildContext,
     private val buildProgressListener: BuildProgressListener
-) : ProcessAdapter(), AnsiEscapeDecoder.ColoredTextAcceptor {
-    private val decoder: AnsiEscapeDecoder = RsAnsiEscapeDecoder()
-
+) : ProcessAdapter() {
+    private val textBuffer: MutableList<String> = mutableListOf()
     private val buildOutputParser: CargoBuildEventsConverter = CargoBuildEventsConverter(context)
-
     private val instantReader = BuildOutputInstantReaderImpl(
         context.buildId,
         context.buildId,
         buildProgressListener,
         listOf(buildOutputParser)
     )
-
-    private val textBuffer: MutableList<String> = mutableListOf()
 
     init {
         val descriptor = DefaultBuildDescriptor(
@@ -79,38 +74,17 @@ class CargoBuildAdapter(
     }
 
     override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-        var rawText = event.text
-        if (SystemInfo.isWindows && rawText.matches(BUILD_PROGRESS_INNER_RE)) {
-            rawText += "\n"
-        }
-
-        textBuffer.add(rawText)
-        if (!rawText.endsWith("\n")) return
-
-        val concat = textBuffer.joinToString("")
-
-        // If the line contains a JSON message (contains `{"reason"` substring), then it should end with `}\n`,
-        // otherwise the line contains only part of the message.
-        if (concat.contains("{\"reason\"") && !concat.endsWith("}\n")) return
-
-        val text = concat.replace(BUILD_PROGRESS_FULL_RE) { it.value.trimEnd(' ', '\r', '\n') + "\n" }
-        textBuffer.clear()
-
-        decoder.escapeText(text, outputType, this)
-        buildOutputParser.parseOutput(
-            text.replace(BUILD_PROGRESS_FULL_RE, ""),
-            outputType == ProcessOutputTypes.STDOUT
-        ) {
-            buildProgressListener.onEvent(context.buildId, it)
-        }
-    }
-
-    override fun coloredTextAvailable(text: String, outputType: Key<*>) {
+        textBuffer.add(event.text)
+        if (!event.text.endsWith("\n")) return
+        val text = textBuffer.joinToString("")
+            .replace(ERASE_LINES_RE, "\n")
+            .replace(BUILD_PROGRESS_RE) { it.value.trimEnd(' ', '\r', '\n') + "\n" }
         instantReader.append(text)
+        textBuffer.clear()
     }
 
     companion object {
-        private val BUILD_PROGRESS_INNER_RE: Regex = """ \[ *=*>? *] \d+/\d+: [\w\-(.)]+(, [\w\-(.)]+)*""".toRegex()
-        private val BUILD_PROGRESS_FULL_RE: Regex = """ *Building$BUILD_PROGRESS_INNER_RE( *[\r\n])*""".toRegex()
+        private val ERASE_LINES_RE: Regex = """${StringUtil.escapeToRegexp(CSI)}\d?K""".toRegex()
+        private val BUILD_PROGRESS_RE: Regex = """($ANSI_SGR_RE)* *Building($ANSI_SGR_RE)* \[ *=*>? *] \d+/\d+: [\w\-(.)]+(, [\w\-(.)]+)*( *[\r\n])*""".toRegex()
     }
 }
