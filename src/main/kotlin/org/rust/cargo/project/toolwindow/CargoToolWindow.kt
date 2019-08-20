@@ -31,6 +31,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
 import javax.swing.JEditorPane
+import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 
 class CargoToolWindowFactory : ToolWindowFactory, DumbAware {
@@ -47,17 +48,17 @@ private class CargoToolWindowPanel(project: Project) : SimpleToolWindowPanel(tru
     private val cargoTab = CargoToolWindow(project)
 
     init {
-        setToolbar(cargoTab.toolbar.component)
+        toolbar = cargoTab.toolbar.component
         cargoTab.toolbar.setTargetComponent(this)
         setContent(cargoTab.content)
     }
 
-    override fun getData(dataId: String): Any? {
-        if (CargoToolWindow.SELECTED_CARGO_PROJECT.`is`(dataId)) {
-            return cargoTab.selectedProject
+    override fun getData(dataId: String): Any? =
+        when {
+            CargoToolWindow.SELECTED_CARGO_PROJECT.`is`(dataId) -> cargoTab.selectedProject
+            CargoToolWindow.CARGO_PROJECTS_TREE.`is`(dataId) -> cargoTab.projectTree
+            else -> super.getData(dataId)
         }
-        return super.getData(dataId)
-    }
 }
 
 class CargoToolWindow(
@@ -74,7 +75,8 @@ class CargoToolWindow(
     }
 
     private val projectStructure = CargoProjectStructure()
-    private val projectTree = CargoProjectStructureTree(projectStructure).apply {
+    
+    val projectTree = CargoProjectStructureTree(projectStructure).apply {
         cellRenderer = CargoProjectTreeRenderer()
         addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
@@ -128,7 +130,10 @@ class CargoToolWindow(
 
     companion object {
         @JvmStatic
-        val SELECTED_CARGO_PROJECT: DataKey<CargoProject> = DataKey.create<CargoProject>("SELECTED_CARGO_PROJECT")
+        val SELECTED_CARGO_PROJECT: DataKey<CargoProject> = DataKey.create("SELECTED_CARGO_PROJECT")
+
+        @JvmStatic
+        val CARGO_PROJECTS_TREE: DataKey<JTree> = DataKey.create("CARGO_PROJECTS_TREE")
 
         private val LOG: Logger = Logger.getInstance(CargoToolWindow::class.java)
     }

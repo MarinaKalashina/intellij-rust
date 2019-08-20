@@ -972,6 +972,14 @@
                 class="org.rust.ide.actions.ToggleExternalLinterOnTheFlyAction"
                 text="Run External Linter (Cargo Check / Clippy) on the Fly"/>
 
+        <action id="Cargo.ExpandAll" class="org.rust.ide.actions.CargoTreeAction$ExpandAll" text="Expand All"
+                icon="AllIcons.Actions.Expandall"
+                use-shortcut-of="ExpandAll"/>
+
+        <action id="Cargo.CollapseAll" class="org.rust.ide.actions.CargoTreeAction$CollapseAll" text="Collapse All"
+                icon="AllIcons.Actions.Collapseall"
+                use-shortcut-of="CollapseAll"/>
+
         <group id="Rust.Cargo">
             <reference id="Cargo.RefreshCargoProject"/>
             <reference id="Cargo.AttachCargoProject"/>
@@ -980,6 +988,9 @@
             <reference id="Cargo.RunCargoCommand"/>
             <reference id="Cargo.RunExternalLinter"/>
             <reference id="Cargo.RustfmtCargoProject"/>
+            <separator/>
+            <reference id="Cargo.ExpandAll"/>
+            <reference id="Cargo.CollapseAll"/>
         </group>
 
     </actions>
