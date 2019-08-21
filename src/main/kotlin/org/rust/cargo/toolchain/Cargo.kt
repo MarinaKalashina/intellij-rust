@@ -28,6 +28,7 @@ import org.rust.cargo.project.settings.rustSettings
 import org.rust.cargo.project.settings.toolchain
 import org.rust.cargo.project.workspace.CargoWorkspace
 import org.rust.cargo.runconfig.buildtool.CargoPatch
+import org.rust.cargo.runconfig.command.CargoCommandConfiguration.Companion.findCargoProject
 import org.rust.cargo.toolchain.Rustup.Companion.checkNeedInstallClippy
 import org.rust.cargo.toolchain.impl.CargoMetadata
 import org.rust.ide.actions.InstallBinaryCrateAction
@@ -99,10 +100,6 @@ class Cargo(private val cargoExecutable: Path) {
         listener: ProcessListener? = null
     ): CargoWorkspace {
         val additionalArgs = mutableListOf("--verbose", "--format-version", "1", "--all-features")
-        if (owner.rustSettings.useOffline) {
-            additionalArgs += "-Zoffline"
-        }
-
         val json = CargoCommandLine("metadata", projectDirectory, additionalArgs)
             .execute(owner, listener = listener)
             .stdout
@@ -119,6 +116,7 @@ class Cargo(private val cargoExecutable: Path) {
 
     @Throws(ExecutionException::class)
     fun init(
+        project: Project,
         owner: Disposable,
         directory: VirtualFile,
         createBinary: Boolean,
@@ -136,7 +134,7 @@ class Cargo(private val cargoExecutable: Path) {
 
         args.add(path.toString())
 
-        CargoCommandLine("init", path, args).execute(owner)
+        CargoCommandLine("init", path, args).execute(project, owner)
         fullyRefreshDirectory(directory)
 
         val manifest = checkNotNull(directory.findChild(RustToolchain.CARGO_TOML)) { "Can't find the manifest file" }
@@ -164,27 +162,36 @@ class Cargo(private val cargoExecutable: Path) {
             }
 
             if (settings.compileAllTargets && checkSupportForBuildCheckAllTargets()) add("--all-targets")
-            if (settings.useOffline) add("-Zoffline")
             addAll(ParametersListUtil.parse(settings.externalLinterArguments))
         }
 
         val useClippy = settings.externalLinter == ExternalLinter.CLIPPY
             && !checkNeedInstallClippy(project, cargoProjectDirectory)
         val checkCommand = if (useClippy) "clippy" else "check"
-        return CargoCommandLine(checkCommand, cargoProjectDirectory, arguments).execute(owner, ignoreExitCode = true)
+        return CargoCommandLine(checkCommand, cargoProjectDirectory, arguments)
+            .execute(project, owner, ignoreExitCode = true)
     }
 
-    fun toColoredCommandLine(commandLine: CargoCommandLine): GeneralCommandLine =
-        toGeneralCommandLine(commandLine, colors = true)
+    fun toColoredCommandLine(project: Project, commandLine: CargoCommandLine): GeneralCommandLine =
+        toGeneralCommandLine(project, commandLine, colors = true)
 
-    fun toGeneralCommandLine(commandLine: CargoCommandLine): GeneralCommandLine =
-        toGeneralCommandLine(commandLine, colors = false)
+    fun toGeneralCommandLine(project: Project, commandLine: CargoCommandLine): GeneralCommandLine =
+        toGeneralCommandLine(project, commandLine, colors = false)
 
-    private fun toGeneralCommandLine(commandLine: CargoCommandLine, colors: Boolean): GeneralCommandLine =
+    private fun toGeneralCommandLine(project: Project, commandLine: CargoCommandLine, colors: Boolean): GeneralCommandLine =
         with(patchArgs(commandLine, colors)) {
             val parameters = buildList<String> {
                 if (channel != RustChannel.DEFAULT) {
                     add("+$channel")
+                }
+                if (project.rustSettings.useOffline) {
+                    val cargoProject = findCargoProject(project, additionalArguments, workingDirectory)
+                    val rustcVersion = cargoProject?.rustcInfo?.version?.semver
+                    if (rustcVersion != null && rustcVersion < RUST_1_36) {
+                        add("-Zoffline")
+                    } else {
+                        add("--offline")
+                    }
                 }
                 add(command)
                 addAll(additionalArguments)
@@ -202,11 +209,12 @@ class Cargo(private val cargoExecutable: Path) {
 
     @Throws(ExecutionException::class)
     private fun CargoCommandLine.execute(
-        owner: Disposable,
+        project: Project,
+        owner: Disposable = project,
         ignoreExitCode: Boolean = false,
         stdIn: ByteArray? = null,
         listener: ProcessListener? = null
-    ): ProcessOutput = toGeneralCommandLine(this).execute(owner, ignoreExitCode, stdIn, listener)
+    ): ProcessOutput = toGeneralCommandLine(project, this).execute(owner, ignoreExitCode, stdIn, listener)
 
     private var _http: HttpConfigurable? = null
     private val http: HttpConfigurable
@@ -334,3 +342,5 @@ class Cargo(private val cargoExecutable: Path) {
         }
     }
 }
+
+private val RUST_1_36: SemVer = SemVer.parseFromText("1.36.0")!!
