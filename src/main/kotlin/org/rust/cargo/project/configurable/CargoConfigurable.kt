@@ -91,4 +91,8 @@ class CargoConfigurable(project: Project) : RsConfigurableBase(project) {
         compileAllTargets = settings.compileAllTargets
         useOffline = settings.useOffline
     }
+
+    companion object {
+        const val DISPLAY_NAME: String = "Cargo"
+    }
 }

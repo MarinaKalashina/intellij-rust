@@ -980,6 +980,12 @@
                 icon="AllIcons.Actions.Collapseall"
                 use-shortcut-of="CollapseAll"/>
 
+        <action id="Cargo.ShowSettings"
+                class="org.rust.ide.actions.CargoEditSettingsAction" text="Cargo Settings"
+                description="Edit Cargo settings for the current project"
+                icon="AllIcons.General.Settings">
+        </action>
+
         <group id="Rust.Cargo">
             <reference id="Cargo.RefreshCargoProject"/>
             <reference id="Cargo.AttachCargoProject"/>
@@ -991,6 +997,8 @@
             <separator/>
             <reference id="Cargo.ExpandAll"/>
             <reference id="Cargo.CollapseAll"/>
+            <separator/>
+            <reference id="Cargo.ShowSettings"/>
         </group>
 
     </actions>
