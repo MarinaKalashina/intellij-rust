@@ -18,6 +18,7 @@ import org.rust.ide.annotator.fixes.AddTurbofishFix
 import org.rust.ide.annotator.fixes.CreateLifetimeParameterFromUsageFix
 import org.rust.ide.annotator.fixes.MakePublicFix
 import org.rust.ide.refactoring.RsNamesValidator.Companion.RESERVED_LIFETIME_NAMES
+import org.rust.ide.utils.shouldBeAnalyzed
 import org.rust.lang.core.*
 import org.rust.lang.core.FeatureAvailability.CAN_BE_ADDED
 import org.rust.lang.core.FeatureAvailability.NOT_AVAILABLE
@@ -39,6 +40,8 @@ class RsErrorAnnotator : RsAnnotatorBase(), HighlightRangeExtension {
     override fun isForceHighlightParents(file: PsiFile): Boolean = file is RsFile
 
     override fun annotateInternal(element: PsiElement, holder: AnnotationHolder) {
+        if (!element.shouldBeAnalyzed) return
+
         val visitor = object : RsVisitor() {
             override fun visitBaseType(o: RsBaseType) = checkBaseType(holder, o)
             override fun visitCondition(o: RsCondition) = checkCondition(holder, o)

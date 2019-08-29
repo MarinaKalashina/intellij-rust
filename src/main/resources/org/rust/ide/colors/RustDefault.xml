@@ -43,4 +43,9 @@
             <option name="BACKGROUND" value="FFE8C6" />
         </value>
     </option>
+    <option name="org.rust.CFG_DISABLED_CODE">
+        <value>
+            <option name="BACKGROUND" value="DBEBE9"/>
+        </value>
+    </option>
 </list>

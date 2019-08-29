@@ -5,7 +5,6 @@
 
 package org.rust.ide.inspections
 
-import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
@@ -18,7 +17,7 @@ import org.rust.lang.core.psi.ext.selfParameter
 
 class RsVariableMutableInspection : RsLocalInspectionTool() {
     override fun getDisplayName() = "No mutable required"
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean) =
+    override fun buildVisitor(holder: RsProblemsHolder, isOnTheFly: Boolean) =
         object : RsVisitor() {
             override fun visitPatBinding(o: RsPatBinding) {
                 if (!o.mutability.isMut) return
